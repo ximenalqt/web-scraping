@@ -1,43 +1,44 @@
-name: "Scrape"
+name: Daily Scraping Task
 
 on:
-  # Manually trigger the workflow  
-  workflow_dispatch:
-  # Or on a schedule
-  # schedule:
-  # - cron: "0 20 * * *"
-  # Commented out to stop the web scrapping
+  schedule:
+    # Ejecutar diariamente a las 12:00 AM UTC
+    - cron: '0 0 * * *'  # Configura la hora de ejecución en formato cron (UTC)
+  workflow_dispatch:  # También se puede ejecutar manualmente desde GitHub
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    
+
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-    - uses: actions/checkout@v4
-
-    - name: Set up Python 3.12
+    - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: "3.12"
+        python-version: '3.10'
 
     - name: Install dependencies
       run: |
-        pip install --upgrade pip
-        pip install -r requirements.txt
+        python -m pip install --upgrade pip
+        pip install selenium beautifulsoup4 pandas
 
-    - name: Execute
-      run: python scrape.py
-
-    # You need to commit the changes to the repository
-    # to keep the dataset up to date.
-    # But you must grant the necessary permissions to the workflow.
-    # https://github.com/[username]/[repo]/settings/actions
-    # Workflow permissions > Read and write permissions
-    - name: Commit changes
+    - name: Run scraper
       run: |
-        git config --global user.email "ximena.quispe.t@uni.pe"
-        git config --global user.name "Ximena Quispe"
-        git add data/
-        git diff --staged --quiet || git commit -m 'New entries'
+        python scrape.py
+
+    - name: Commit and push new CSV to repository
+      run: |
+        # Obtener la fecha actual
+        DATE=$(date +'%Y-%m-%d')
+        # Crear directorio para la fecha
+        mkdir -p "data/$DATE-SBS"
+        # Mover el CSV generado al directorio correspondiente
+        mv tasas_sbs.csv "data/$DATE-SBS/tasas_sbs.csv"
+        # Agregar los cambios a Git
+        git add "data/$DATE-SBS/tasas_sbs.csv"
+        git commit -m "Add CSV for $DATE"
         git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Token para autenticación
